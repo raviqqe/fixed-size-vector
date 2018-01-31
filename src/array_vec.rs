@@ -197,7 +197,7 @@ mod test {
     }
 
     #[test]
-    fn push_and_pop_front_over_boundary() {
+    fn push_and_pop_front_across_edges() {
         let mut a: ArrayVec<[usize; 2]> = ArrayVec::new();
 
         assert!(a.push(&1).is_ok());
@@ -224,7 +224,7 @@ mod test {
     }
 
     #[test]
-    fn iterator_over_boundary() {
+    fn iterator_across_edges() {
         let mut a: ArrayVec<[usize; 2]> = ArrayVec::new();
 
         assert!(a.push(&42).is_ok());
