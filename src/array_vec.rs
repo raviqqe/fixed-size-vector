@@ -81,6 +81,21 @@ where
     }
 }
 
+impl<'a, T: 'a, A: AsRef<[T]> + AsMut<[T]>> IntoIterator for &'a mut ArrayVec<A>
+where
+    &'a A: IntoIterator<Item = &'a T>,
+{
+    type Item = &'a mut T;
+    type IntoIter = ArrayVecMutIterator<'a, A>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        ArrayVecMutIterator {
+            vec: self,
+            current: 0,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct ArrayVecIterator<'a, A: 'a> {
     vec: &'a ArrayVec<A>,
@@ -101,6 +116,30 @@ where
         let x = &self.vec.array.as_ref()[self.vec.index(self.current)];
         self.current += 1;
         Some(x)
+    }
+}
+
+#[derive(Debug)]
+pub struct ArrayVecMutIterator<'a, A: 'a> {
+    vec: &'a mut ArrayVec<A>,
+    current: usize,
+}
+
+impl<'a, T: 'a, A: AsRef<[T]> + AsMut<[T]>> Iterator for ArrayVecMutIterator<'a, A>
+where
+    &'a A: IntoIterator<Item = &'a T>,
+{
+    type Item = &'a mut T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current == self.vec.length {
+            return None;
+        }
+
+        let i = self.vec.index(self.current);
+        let x = &mut self.vec.array.as_mut()[i] as *mut T;
+        self.current += 1;
+        Some(unsafe { &mut *x })
     }
 }
 
@@ -193,6 +232,19 @@ mod test {
 
         for (i, e) in a.into_iter().enumerate() {
             assert_eq!(*e, i);
+        }
+    }
+
+    #[test]
+    fn iterator_mut() {
+        let mut a: ArrayVec<[usize; 2]> = ArrayVec::new();
+
+        assert!(a.enqueue(0));
+        assert!(a.enqueue(1));
+
+        for (i, e) in (&mut a).into_iter().enumerate() {
+            assert_eq!(*e, i);
+            *e = 42;
         }
     }
 }
