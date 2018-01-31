@@ -1,5 +1,7 @@
 use std::mem::replace;
 
+use super::error::CapacityError;
+
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct ArrayVec<A> {
     array: A,
@@ -19,18 +21,18 @@ impl<A> ArrayVec<A> {
         }
     }
 
-    pub fn push<T: Clone>(&mut self, x: &T) -> bool
+    pub fn push<T: Clone>(&mut self, x: &T) -> Result<(), CapacityError>
     where
         A: AsRef<[T]> + AsMut<[T]>,
     {
         if self.length == self.capacity() {
-            return false;
+            return Err(CapacityError);
         }
 
         let i = self.index(self.length);
         self.array.as_mut()[i] = x.clone();
         self.length += 1;
-        true
+        Ok(())
     }
 
     pub fn pop_front<T: Default>(&mut self) -> Option<T>
@@ -158,19 +160,19 @@ mod test {
         let mut a: ArrayVec<[usize; 1]> = ArrayVec::new();
 
         assert_eq!(a.len(), 0);
-        assert!(a.push(&42));
+        assert!(a.push(&42).is_ok());
         assert_eq!(a.len(), 1);
-        assert!(!a.push(&42));
+        assert_eq!(a.push(&42), Err(CapacityError));
         assert_eq!(a.len(), 1);
 
         let mut a: ArrayVec<[usize; 2]> = ArrayVec::new();
 
         assert_eq!(a.len(), 0);
-        assert!(a.push(&42));
+        assert!(a.push(&42).is_ok());
         assert_eq!(a.len(), 1);
-        assert!(a.push(&42));
+        assert!(a.push(&42).is_ok());
         assert_eq!(a.len(), 2);
-        assert!(!a.push(&42));
+        assert_eq!(a.push(&42), Err(CapacityError));
         assert_eq!(a.len(), 2);
     }
 
@@ -178,15 +180,15 @@ mod test {
     fn pop_front() {
         let mut a: ArrayVec<[usize; 1]> = ArrayVec::new();
 
-        assert!(a.push(&42));
+        assert!(a.push(&42).is_ok());
 
         assert_eq!(a.pop_front(), Some(42));
         assert_eq!(a.len(), 0);
 
         let mut a: ArrayVec<[usize; 2]> = ArrayVec::new();
 
-        assert!(a.push(&123));
-        assert!(a.push(&42));
+        assert!(a.push(&123).is_ok());
+        assert!(a.push(&42).is_ok());
 
         assert_eq!(a.pop_front(), Some(123));
         assert_eq!(a.len(), 1);
@@ -198,13 +200,13 @@ mod test {
     fn push_and_pop_front_over_boundary() {
         let mut a: ArrayVec<[usize; 2]> = ArrayVec::new();
 
-        assert!(a.push(&1));
-        assert!(a.push(&2));
+        assert!(a.push(&1).is_ok());
+        assert!(a.push(&2).is_ok());
 
         for i in 3..64 {
             assert_eq!(a.pop_front(), Some(i - 2));
             assert_eq!(a.len(), 1);
-            assert!(a.push(&i));
+            assert!(a.push(&i).is_ok());
             assert_eq!(a.len(), 2);
         }
     }
@@ -213,8 +215,8 @@ mod test {
     fn iterator() {
         let mut a: ArrayVec<[usize; 2]> = ArrayVec::new();
 
-        assert!(a.push(&0));
-        assert!(a.push(&1));
+        assert!(a.push(&0).is_ok());
+        assert!(a.push(&1).is_ok());
 
         for (i, e) in a.into_iter().enumerate() {
             assert_eq!(*e, i);
@@ -225,10 +227,10 @@ mod test {
     fn iterator_over_boundary() {
         let mut a: ArrayVec<[usize; 2]> = ArrayVec::new();
 
-        assert!(a.push(&42));
+        assert!(a.push(&42).is_ok());
         a.pop_front();
-        assert!(a.push(&0));
-        assert!(a.push(&1));
+        assert!(a.push(&0).is_ok());
+        assert!(a.push(&1).is_ok());
 
         for (i, e) in a.into_iter().enumerate() {
             assert_eq!(*e, i);
@@ -239,8 +241,8 @@ mod test {
     fn iterator_mut() {
         let mut a: ArrayVec<[usize; 2]> = ArrayVec::new();
 
-        assert!(a.push(&0));
-        assert!(a.push(&1));
+        assert!(a.push(&0).is_ok());
+        assert!(a.push(&1).is_ok());
 
         for (i, e) in (&mut a).into_iter().enumerate() {
             assert_eq!(*e, i);
