@@ -1,4 +1,4 @@
-mod array_vec;
+mod array_queue;
 mod error;
 
-pub use array_vec::ArrayVec;
+pub use array_queue::ArrayQueue;

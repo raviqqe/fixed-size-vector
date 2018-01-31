@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::fmt::{Display, Formatter, Result};
 
-const MESSAGE: &'static str = "vector is full";
+const MESSAGE: &'static str = "queue is full";
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct CapacityError;

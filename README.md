@@ -1,10 +1,10 @@
-# fixed-size-vector
+# array-queue
 
-[![Circle CI](https://img.shields.io/circleci/project/github/raviqqe/fixed-size-vector.svg?style=flat-square)](https://circleci.com/gh/raviqqe/fixed-size-vector)
-[![Crates.io](https://img.shields.io/crates/v/fixed-size-vector.svg?style=flat-square)](https://crates.io/crates/fixed-size-vector)
-[![License](https://img.shields.io/github/license/raviqqe/fixed-size-vector.svg?style=flat-square)](https://opensource.org/licenses/MIT)
+[![Circle CI](https://img.shields.io/circleci/project/github/raviqqe/array-queue.svg?style=flat-square)](https://circleci.com/gh/raviqqe/array-queue)
+[![Crates.io](https://img.shields.io/crates/v/array-queue.svg?style=flat-square)](https://crates.io/crates/array-queue)
+[![License](https://img.shields.io/github/license/raviqqe/array-queue.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 
-Fixed size vector based on arrays.
+Fixed size bidirectional queue based on arrays.
 
 ## License
 

@@ -1,6 +1,6 @@
 [package]
-name = "fixed-size-vector"
-description = "Fixed size vector based on arrays"
+name = "array-queue"
+description = "Fixed size bidirectional queue based on arrays"
 version = "0.2.2"
 authors = ["Yota Toyama <raviqqe@gmail.com>"]
 license = "MIT"

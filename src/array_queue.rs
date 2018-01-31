@@ -3,18 +3,18 @@ use std::mem::replace;
 use super::error::CapacityError;
 
 #[derive(Clone, Copy, Debug)]
-pub struct ArrayVec<A> {
+pub struct ArrayQueue<A> {
     array: A,
     start: usize,
     length: usize,
 }
 
-impl<A> ArrayVec<A> {
+impl<A> ArrayQueue<A> {
     pub fn new() -> Self
     where
         A: Default,
     {
-        ArrayVec {
+        ArrayQueue {
             array: Default::default(),
             start: 0,
             length: 0,
@@ -82,84 +82,84 @@ impl<A> ArrayVec<A> {
     }
 }
 
-impl<A: Default> Default for ArrayVec<A> {
+impl<A: Default> Default for ArrayQueue<A> {
     fn default() -> Self {
-        ArrayVec::new()
+        ArrayQueue::new()
     }
 }
 
-impl<'a, T: 'a, A: AsRef<[T]>> IntoIterator for &'a ArrayVec<A>
+impl<'a, T: 'a, A: AsRef<[T]>> IntoIterator for &'a ArrayQueue<A>
 where
     &'a A: IntoIterator<Item = &'a T>,
 {
     type Item = &'a T;
-    type IntoIter = ArrayVecIterator<'a, A>;
+    type IntoIter = ArrayQueueIterator<'a, A>;
 
     fn into_iter(self) -> Self::IntoIter {
-        ArrayVecIterator {
-            vec: self,
+        ArrayQueueIterator {
+            queue: self,
             current: 0,
         }
     }
 }
 
-impl<'a, T: 'a, A: AsRef<[T]> + AsMut<[T]>> IntoIterator for &'a mut ArrayVec<A>
+impl<'a, T: 'a, A: AsRef<[T]> + AsMut<[T]>> IntoIterator for &'a mut ArrayQueue<A>
 where
     &'a A: IntoIterator<Item = &'a T>,
 {
     type Item = &'a mut T;
-    type IntoIter = ArrayVecMutIterator<'a, A>;
+    type IntoIter = ArrayQueueMutIterator<'a, A>;
 
     fn into_iter(self) -> Self::IntoIter {
-        ArrayVecMutIterator {
-            vec: self,
+        ArrayQueueMutIterator {
+            queue: self,
             current: 0,
         }
     }
 }
 
 #[derive(Debug)]
-pub struct ArrayVecIterator<'a, A: 'a> {
-    vec: &'a ArrayVec<A>,
+pub struct ArrayQueueIterator<'a, A: 'a> {
+    queue: &'a ArrayQueue<A>,
     current: usize,
 }
 
-impl<'a, T: 'a, A: AsRef<[T]>> Iterator for ArrayVecIterator<'a, A>
+impl<'a, T: 'a, A: AsRef<[T]>> Iterator for ArrayQueueIterator<'a, A>
 where
     &'a A: IntoIterator<Item = &'a T>,
 {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.current == self.vec.length {
+        if self.current == self.queue.length {
             return None;
         }
 
-        let x = &self.vec.array.as_ref()[self.vec.index(self.current)];
+        let x = &self.queue.array.as_ref()[self.queue.index(self.current)];
         self.current += 1;
         Some(x)
     }
 }
 
 #[derive(Debug)]
-pub struct ArrayVecMutIterator<'a, A: 'a> {
-    vec: &'a mut ArrayVec<A>,
+pub struct ArrayQueueMutIterator<'a, A: 'a> {
+    queue: &'a mut ArrayQueue<A>,
     current: usize,
 }
 
-impl<'a, T: 'a, A: AsRef<[T]> + AsMut<[T]>> Iterator for ArrayVecMutIterator<'a, A>
+impl<'a, T: 'a, A: AsRef<[T]> + AsMut<[T]>> Iterator for ArrayQueueMutIterator<'a, A>
 where
     &'a A: IntoIterator<Item = &'a T>,
 {
     type Item = &'a mut T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.current == self.vec.length {
+        if self.current == self.queue.length {
             return None;
         }
 
-        let i = self.vec.index(self.current);
-        let x = &mut self.vec.array.as_mut()[i] as *mut T;
+        let i = self.queue.index(self.current);
+        let x = &mut self.queue.array.as_mut()[i] as *mut T;
         self.current += 1;
         Some(unsafe { &mut *x })
     }
@@ -171,13 +171,13 @@ mod test {
 
     #[test]
     fn new() {
-        let _: ArrayVec<[usize; 1]> = ArrayVec::new();
-        let _: ArrayVec<[usize; 2]> = ArrayVec::new();
+        let _: ArrayQueue<[usize; 1]> = ArrayQueue::new();
+        let _: ArrayQueue<[usize; 2]> = ArrayQueue::new();
     }
 
     #[test]
     fn push() {
-        let mut a: ArrayVec<[usize; 1]> = ArrayVec::new();
+        let mut a: ArrayQueue<[usize; 1]> = ArrayQueue::new();
 
         assert_eq!(a.len(), 0);
         assert!(a.push(&42).is_ok());
@@ -185,7 +185,7 @@ mod test {
         assert_eq!(a.push(&42), Err(CapacityError));
         assert_eq!(a.len(), 1);
 
-        let mut a: ArrayVec<[usize; 2]> = ArrayVec::new();
+        let mut a: ArrayQueue<[usize; 2]> = ArrayQueue::new();
 
         assert_eq!(a.len(), 0);
         assert!(a.push(&42).is_ok());
@@ -198,14 +198,14 @@ mod test {
 
     #[test]
     fn pop_front() {
-        let mut a: ArrayVec<[usize; 1]> = ArrayVec::new();
+        let mut a: ArrayQueue<[usize; 1]> = ArrayQueue::new();
 
         assert!(a.push(&42).is_ok());
 
         assert_eq!(a.pop_front(), Some(42));
         assert_eq!(a.len(), 0);
 
-        let mut a: ArrayVec<[usize; 2]> = ArrayVec::new();
+        let mut a: ArrayQueue<[usize; 2]> = ArrayQueue::new();
 
         assert!(a.push(&123).is_ok());
         assert!(a.push(&42).is_ok());
@@ -218,7 +218,7 @@ mod test {
 
     #[test]
     fn push_and_pop_front_across_edges() {
-        let mut a: ArrayVec<[usize; 2]> = ArrayVec::new();
+        let mut a: ArrayQueue<[usize; 2]> = ArrayQueue::new();
 
         assert!(a.push(&1).is_ok());
         assert!(a.push(&2).is_ok());
@@ -233,20 +233,20 @@ mod test {
 
     #[test]
     fn is_empty() {
-        let a: ArrayVec<[usize; 1]> = ArrayVec::new();
+        let a: ArrayQueue<[usize; 1]> = ArrayQueue::new();
         assert!(a.is_empty());
 
-        let a: ArrayVec<[usize; 2]> = ArrayVec::new();
+        let a: ArrayQueue<[usize; 2]> = ArrayQueue::new();
         assert!(a.is_empty());
     }
 
     #[test]
     fn is_full() {
-        let mut a: ArrayVec<[usize; 1]> = ArrayVec::new();
+        let mut a: ArrayQueue<[usize; 1]> = ArrayQueue::new();
         assert!(a.push(&0).is_ok());
         assert!(a.is_full());
 
-        let mut a: ArrayVec<[usize; 2]> = ArrayVec::new();
+        let mut a: ArrayQueue<[usize; 2]> = ArrayQueue::new();
         assert!(a.push(&0).is_ok());
         assert!(a.push(&0).is_ok());
         assert!(a.is_full());
@@ -254,7 +254,7 @@ mod test {
 
     #[test]
     fn iterator() {
-        let mut a: ArrayVec<[usize; 2]> = ArrayVec::new();
+        let mut a: ArrayQueue<[usize; 2]> = ArrayQueue::new();
 
         assert!(a.push(&0).is_ok());
         assert!(a.push(&1).is_ok());
@@ -266,7 +266,7 @@ mod test {
 
     #[test]
     fn iterator_across_edges() {
-        let mut a: ArrayVec<[usize; 2]> = ArrayVec::new();
+        let mut a: ArrayQueue<[usize; 2]> = ArrayQueue::new();
 
         assert!(a.push(&42).is_ok());
         a.pop_front();
@@ -280,7 +280,7 @@ mod test {
 
     #[test]
     fn iterator_mut() {
-        let mut a: ArrayVec<[usize; 2]> = ArrayVec::new();
+        let mut a: ArrayQueue<[usize; 2]> = ArrayQueue::new();
 
         assert!(a.push(&0).is_ok());
         assert!(a.push(&1).is_ok());
@@ -293,7 +293,7 @@ mod test {
 
     #[test]
     fn reference_elements() {
-        let mut a: ArrayVec<[Box<usize>; 2]> = ArrayVec::new();
+        let mut a: ArrayQueue<[Box<usize>; 2]> = ArrayQueue::new();
         assert!(a.push(&Box::new(42)).is_ok());
     }
 }
