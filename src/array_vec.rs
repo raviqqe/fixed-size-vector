@@ -2,7 +2,7 @@ use std::mem::replace;
 
 use super::error::CapacityError;
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug)]
 pub struct ArrayVec<A> {
     array: A,
     start: usize,
