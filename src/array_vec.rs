@@ -27,8 +27,8 @@ impl<A> ArrayVec<A> {
             return false;
         }
 
-        let c = self.capacity();
-        self.array.as_mut()[(self.start + self.length) % c] = x;
+        let i = self.index(self.length);
+        self.array.as_mut()[i] = x;
         self.length += 1;
         true
     }
@@ -42,7 +42,7 @@ impl<A> ArrayVec<A> {
         }
 
         let x = replace(&mut self.array.as_mut()[self.start], Default::default());
-        self.start = (self.start + 1) % self.capacity();
+        self.start = self.index(1);
         self.length -= 1;
         Some(x)
     }
@@ -51,11 +51,56 @@ impl<A> ArrayVec<A> {
         self.length
     }
 
+    fn index<T>(&self, i: usize) -> usize
+    where
+        A: AsRef<[T]>,
+    {
+        (self.start + i) % self.capacity()
+    }
+
     fn capacity<T>(&self) -> usize
     where
         A: AsRef<[T]>,
     {
         self.array.as_ref().len()
+    }
+}
+
+impl<'a, T: 'a, A: AsRef<[T]>> IntoIterator for &'a ArrayVec<A>
+where
+    &'a A: IntoIterator<Item = &'a T>,
+{
+    type Item = &'a T;
+    type IntoIter = ArrayVecIterator<'a, A>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        ArrayVecIterator {
+            vec: self,
+            current: 0,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ArrayVecIterator<'a, A: 'a> {
+    vec: &'a ArrayVec<A>,
+    current: usize,
+}
+
+impl<'a, T: 'a, A: AsRef<[T]>> Iterator for ArrayVecIterator<'a, A>
+where
+    &'a A: IntoIterator<Item = &'a T>,
+{
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current == self.vec.length {
+            return None;
+        }
+
+        let x = &self.vec.array.as_ref()[self.vec.index(self.current)];
+        self.current += 1;
+        Some(x)
     }
 }
 
@@ -122,6 +167,32 @@ mod test {
             assert_eq!(a.len(), 1);
             assert!(a.enqueue(i));
             assert_eq!(a.len(), 2);
+        }
+    }
+
+    #[test]
+    fn iterator() {
+        let mut a: ArrayVec<[usize; 2]> = ArrayVec::new();
+
+        assert!(a.enqueue(0));
+        assert!(a.enqueue(1));
+
+        for (i, e) in a.into_iter().enumerate() {
+            assert_eq!(*e, i);
+        }
+    }
+
+    #[test]
+    fn iterator_over_boundary() {
+        let mut a: ArrayVec<[usize; 2]> = ArrayVec::new();
+
+        assert!(a.enqueue(42));
+        a.dequeue();
+        assert!(a.enqueue(0));
+        assert!(a.enqueue(1));
+
+        for (i, e) in a.into_iter().enumerate() {
+            assert_eq!(*e, i);
         }
     }
 }
