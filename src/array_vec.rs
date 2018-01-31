@@ -7,11 +7,11 @@ pub struct ArrayVec<A> {
     length: usize,
 }
 
-impl<A> ArrayVec<A>
-where
-    A: Default,
-{
-    pub fn new() -> Self {
+impl<A> ArrayVec<A> {
+    pub fn new() -> Self
+    where
+        A: Default,
+    {
         ArrayVec {
             array: Default::default(),
             start: 0,
