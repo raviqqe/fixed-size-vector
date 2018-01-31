@@ -290,4 +290,10 @@ mod test {
             *e = 42;
         }
     }
+
+    #[test]
+    fn reference_elements() {
+        let mut a: ArrayVec<[Box<usize>; 2]> = ArrayVec::new();
+        assert!(a.push(&Box::new(42)).is_ok());
+    }
 }
