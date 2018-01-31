@@ -1,0 +1,8 @@
+[package]
+name = "fixed-size-vector"
+description = "Fixed size vector based on arrays"
+version = "0.1.0"
+authors = ["Yota Toyama <raviqqe@gmail.com>"]
+license = "MIT"
+
+[dependencies]
