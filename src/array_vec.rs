@@ -53,6 +53,20 @@ impl<A> ArrayVec<A> {
         self.length
     }
 
+    pub fn is_empty<T>(&self) -> bool
+    where
+        A: AsRef<[T]>,
+    {
+        self.len() == 0
+    }
+
+    pub fn is_full<T>(&self) -> bool
+    where
+        A: AsRef<[T]>,
+    {
+        self.len() == self.capacity()
+    }
+
     fn index<T>(&self, i: usize) -> usize
     where
         A: AsRef<[T]>,
@@ -209,6 +223,27 @@ mod test {
             assert!(a.push(&i).is_ok());
             assert_eq!(a.len(), 2);
         }
+    }
+
+    #[test]
+    fn is_empty() {
+        let a: ArrayVec<[usize; 1]> = ArrayVec::new();
+        assert!(a.is_empty());
+
+        let a: ArrayVec<[usize; 2]> = ArrayVec::new();
+        assert!(a.is_empty());
+    }
+
+    #[test]
+    fn is_full() {
+        let mut a: ArrayVec<[usize; 1]> = ArrayVec::new();
+        assert!(a.push(&0).is_ok());
+        assert!(a.is_full());
+
+        let mut a: ArrayVec<[usize; 2]> = ArrayVec::new();
+        assert!(a.push(&0).is_ok());
+        assert!(a.push(&0).is_ok());
+        assert!(a.is_full());
     }
 
     #[test]
