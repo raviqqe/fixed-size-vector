@@ -84,6 +84,12 @@ impl<A> ArrayVec<A> {
     }
 }
 
+impl<A> Default for ArrayVec<A> {
+    fn default() -> Self {
+        ArrayVec::new()
+    }
+}
+
 impl<'a, T: 'a, A: AsRef<[T]>> IntoIterator for &'a ArrayVec<A>
 where
     &'a A: IntoIterator<Item = &'a T>,
