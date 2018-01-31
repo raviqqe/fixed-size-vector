@@ -1,4 +1,4 @@
-use std::mem::replace;
+use std::mem::{replace, uninitialized};
 
 use super::error::CapacityError;
 
@@ -10,12 +10,9 @@ pub struct ArrayVec<A> {
 }
 
 impl<A> ArrayVec<A> {
-    pub fn new() -> Self
-    where
-        A: Default,
-    {
+    pub fn new() -> Self {
         ArrayVec {
-            array: Default::default(),
+            array: unsafe { uninitialized() },
             start: 0,
             length: 0,
         }
@@ -32,10 +29,11 @@ impl<A> ArrayVec<A> {
         let i = self.index(self.length);
         self.array.as_mut()[i] = x.clone();
         self.length += 1;
+
         Ok(())
     }
 
-    pub fn pop_front<T: Default>(&mut self) -> Option<T>
+    pub fn pop_front<T>(&mut self) -> Option<T>
     where
         A: AsRef<[T]> + AsMut<[T]>,
     {
@@ -43,9 +41,13 @@ impl<A> ArrayVec<A> {
             return None;
         }
 
-        let x = replace(&mut self.array.as_mut()[self.start], Default::default());
+        let x = replace(&mut self.array.as_mut()[self.start], unsafe {
+            uninitialized()
+        });
+
         self.start = self.index(1);
         self.length -= 1;
+
         Some(x)
     }
 
