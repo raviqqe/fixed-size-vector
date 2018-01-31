@@ -19,7 +19,7 @@ impl<A> ArrayVec<A> {
         }
     }
 
-    pub fn push<T>(&mut self, x: T) -> bool
+    pub fn push<T: Clone>(&mut self, x: &T) -> bool
     where
         A: AsRef<[T]> + AsMut<[T]>,
     {
@@ -28,7 +28,7 @@ impl<A> ArrayVec<A> {
         }
 
         let i = self.index(self.length);
-        self.array.as_mut()[i] = x;
+        self.array.as_mut()[i] = x.clone();
         self.length += 1;
         true
     }
@@ -158,19 +158,19 @@ mod test {
         let mut a: ArrayVec<[usize; 1]> = ArrayVec::new();
 
         assert_eq!(a.len(), 0);
-        assert!(a.push(42));
+        assert!(a.push(&42));
         assert_eq!(a.len(), 1);
-        assert!(!a.push(42));
+        assert!(!a.push(&42));
         assert_eq!(a.len(), 1);
 
         let mut a: ArrayVec<[usize; 2]> = ArrayVec::new();
 
         assert_eq!(a.len(), 0);
-        assert!(a.push(42));
+        assert!(a.push(&42));
         assert_eq!(a.len(), 1);
-        assert!(a.push(42));
+        assert!(a.push(&42));
         assert_eq!(a.len(), 2);
-        assert!(!a.push(42));
+        assert!(!a.push(&42));
         assert_eq!(a.len(), 2);
     }
 
@@ -178,15 +178,15 @@ mod test {
     fn pop_front() {
         let mut a: ArrayVec<[usize; 1]> = ArrayVec::new();
 
-        assert!(a.push(42));
+        assert!(a.push(&42));
 
         assert_eq!(a.pop_front(), Some(42));
         assert_eq!(a.len(), 0);
 
         let mut a: ArrayVec<[usize; 2]> = ArrayVec::new();
 
-        assert!(a.push(123));
-        assert!(a.push(42));
+        assert!(a.push(&123));
+        assert!(a.push(&42));
 
         assert_eq!(a.pop_front(), Some(123));
         assert_eq!(a.len(), 1);
@@ -198,13 +198,13 @@ mod test {
     fn push_and_pop_front_over_boundary() {
         let mut a: ArrayVec<[usize; 2]> = ArrayVec::new();
 
-        assert!(a.push(1));
-        assert!(a.push(2));
+        assert!(a.push(&1));
+        assert!(a.push(&2));
 
         for i in 3..64 {
             assert_eq!(a.pop_front(), Some(i - 2));
             assert_eq!(a.len(), 1);
-            assert!(a.push(i));
+            assert!(a.push(&i));
             assert_eq!(a.len(), 2);
         }
     }
@@ -213,8 +213,8 @@ mod test {
     fn iterator() {
         let mut a: ArrayVec<[usize; 2]> = ArrayVec::new();
 
-        assert!(a.push(0));
-        assert!(a.push(1));
+        assert!(a.push(&0));
+        assert!(a.push(&1));
 
         for (i, e) in a.into_iter().enumerate() {
             assert_eq!(*e, i);
@@ -225,10 +225,10 @@ mod test {
     fn iterator_over_boundary() {
         let mut a: ArrayVec<[usize; 2]> = ArrayVec::new();
 
-        assert!(a.push(42));
+        assert!(a.push(&42));
         a.pop_front();
-        assert!(a.push(0));
-        assert!(a.push(1));
+        assert!(a.push(&0));
+        assert!(a.push(&1));
 
         for (i, e) in a.into_iter().enumerate() {
             assert_eq!(*e, i);
@@ -239,8 +239,8 @@ mod test {
     fn iterator_mut() {
         let mut a: ArrayVec<[usize; 2]> = ArrayVec::new();
 
-        assert!(a.push(0));
-        assert!(a.push(1));
+        assert!(a.push(&0));
+        assert!(a.push(&1));
 
         for (i, e) in (&mut a).into_iter().enumerate() {
             assert_eq!(*e, i);
