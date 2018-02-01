@@ -113,7 +113,7 @@ impl<A> ArrayQueue<A> {
     where
         A: AsRef<[T]> + AsMut<[T]>,
     {
-        if self.length == 0 {
+        if self.is_empty() {
             return None;
         }
 
@@ -129,7 +129,7 @@ impl<A> ArrayQueue<A> {
     where
         A: AsRef<[T]> + AsMut<[T]>,
     {
-        if self.length == 0 {
+        if self.is_empty() {
             return None;
         }
 
