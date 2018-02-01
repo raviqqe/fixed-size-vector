@@ -85,12 +85,26 @@ impl<A> ArrayQueue<A> {
     where
         A: AsRef<[T]> + AsMut<[T]>,
     {
-        if self.length == self.capacity() {
+        if self.is_full() {
             return Err(CapacityError);
         }
 
         let i = self.index(self.length);
         self.array.as_mut()[i] = x.clone();
+        self.length += 1;
+        Ok(())
+    }
+
+    pub fn push_front<T: Clone>(&mut self, x: &T) -> Result<(), CapacityError>
+    where
+        A: AsRef<[T]> + AsMut<[T]>,
+    {
+        if self.is_full() {
+            return Err(CapacityError);
+        }
+
+        self.start = self.index(self.capacity() - 1);
+        self.array.as_mut()[self.start] = x.clone();
         self.length += 1;
         Ok(())
     }
@@ -293,6 +307,31 @@ mod test {
         assert!(a.push(&42).is_ok());
         assert_eq!(a.len(), 2);
         assert_eq!(a.push(&42), Err(CapacityError));
+        assert_eq!(a.len(), 2);
+    }
+
+    #[test]
+    fn push_front() {
+        let mut a: ArrayQueue<[usize; 1]> = ArrayQueue::new();
+
+        assert_eq!(a.len(), 0);
+        assert!(a.push_front(&42).is_ok());
+        assert_eq!(a.len(), 1);
+        assert_eq!(a.push_front(&42), Err(CapacityError));
+        assert_eq!(a.len(), 1);
+
+        let mut a: ArrayQueue<[usize; 2]> = ArrayQueue::new();
+
+        assert_eq!(a.len(), 0);
+        assert!(a.push_front(&1).is_ok());
+        assert_eq!(a.first(), Some(&1));
+        assert_eq!(a.last(), Some(&1));
+        assert_eq!(a.len(), 1);
+        assert!(a.push_front(&2).is_ok());
+        assert_eq!(a.first(), Some(&2));
+        assert_eq!(a.last(), Some(&1));
+        assert_eq!(a.len(), 2);
+        assert_eq!(a.push_front(&3), Err(CapacityError));
         assert_eq!(a.len(), 2);
     }
 
