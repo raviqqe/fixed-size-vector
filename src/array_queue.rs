@@ -95,6 +95,22 @@ impl<A> ArrayQueue<A> {
         Ok(())
     }
 
+    pub fn pop<T: Default>(&mut self) -> Option<T>
+    where
+        A: AsRef<[T]> + AsMut<[T]>,
+    {
+        if self.length == 0 {
+            return None;
+        }
+
+        let x = replace(
+            &mut self.array.as_mut()[self.length - 1],
+            Default::default(),
+        );
+        self.length -= 1;
+        Some(x)
+    }
+
     pub fn pop_front<T: Default>(&mut self) -> Option<T>
     where
         A: AsRef<[T]> + AsMut<[T]>,
@@ -281,6 +297,28 @@ mod test {
     }
 
     #[test]
+    fn pop() {
+        let mut a: ArrayQueue<[usize; 1]> = ArrayQueue::new();
+
+        assert!(a.push(&42).is_ok());
+
+        assert_eq!(a.pop(), Some(42));
+        assert_eq!(a.len(), 0);
+
+        let mut a: ArrayQueue<[usize; 2]> = ArrayQueue::new();
+
+        assert!(a.push(&123).is_ok());
+        assert!(a.push(&42).is_ok());
+
+        assert_eq!(a.pop(), Some(42));
+        assert_eq!(a.first(), Some(&123));
+        assert_eq!(a.last(), Some(&123));
+        assert_eq!(a.len(), 1);
+        assert_eq!(a.pop(), Some(123));
+        assert_eq!(a.len(), 0);
+    }
+
+    #[test]
     fn pop_front() {
         let mut a: ArrayQueue<[usize; 1]> = ArrayQueue::new();
 
@@ -295,6 +333,8 @@ mod test {
         assert!(a.push(&42).is_ok());
 
         assert_eq!(a.pop_front(), Some(123));
+        assert_eq!(a.first(), Some(&42));
+        assert_eq!(a.last(), Some(&42));
         assert_eq!(a.len(), 1);
         assert_eq!(a.pop_front(), Some(42));
         assert_eq!(a.len(), 0);
