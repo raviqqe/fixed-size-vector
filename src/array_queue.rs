@@ -21,6 +21,66 @@ impl<A> ArrayQueue<A> {
         }
     }
 
+    pub fn first<T>(&self) -> Option<&T>
+    where
+        A: AsRef<[T]>,
+    {
+        self.element(0)
+    }
+
+    pub fn first_mut<T>(&mut self) -> Option<&mut T>
+    where
+        A: AsRef<[T]> + AsMut<[T]>,
+    {
+        self.element_mut(0)
+    }
+
+    pub fn last<T>(&self) -> Option<&T>
+    where
+        A: AsRef<[T]>,
+    {
+        if self.is_empty() {
+            return None;
+        }
+
+        self.element(self.length - 1)
+    }
+
+    pub fn last_mut<T>(&mut self) -> Option<&mut T>
+    where
+        A: AsRef<[T]> + AsMut<[T]>,
+    {
+        if self.is_empty() {
+            return None;
+        }
+
+        let i = self.length - 1;
+        self.element_mut(i)
+    }
+
+    fn element<T>(&self, i: usize) -> Option<&T>
+    where
+        A: AsRef<[T]>,
+    {
+        if self.is_empty() {
+            None
+        } else {
+            Some(&self.array.as_ref()[self.index(i)])
+        }
+    }
+
+    fn element_mut<T>(&mut self, i: usize) -> Option<&mut T>
+    where
+        A: AsRef<[T]> + AsMut<[T]>,
+    {
+        if self.is_empty() {
+            None
+        } else {
+            let i = self.index(i);
+            Some(&mut self.array.as_mut()[i])
+        }
+    }
+
     pub fn push<T: Clone>(&mut self, x: &T) -> Result<(), CapacityError>
     where
         A: AsRef<[T]> + AsMut<[T]>,
@@ -173,6 +233,30 @@ mod test {
     fn new() {
         let _: ArrayQueue<[usize; 1]> = ArrayQueue::new();
         let _: ArrayQueue<[usize; 2]> = ArrayQueue::new();
+    }
+
+    #[test]
+    fn first_and_last() {
+        let mut a: ArrayQueue<[usize; 2]> = ArrayQueue::new();
+
+        assert_eq!(a.first(), None);
+        assert_eq!(a.first_mut(), None);
+        assert_eq!(a.last(), None);
+        assert_eq!(a.last_mut(), None);
+
+        assert!(a.push(&1).is_ok());
+
+        assert_eq!(a.first(), Some(&1));
+        assert_eq!(a.first_mut(), Some(&mut 1));
+        assert_eq!(a.last(), Some(&1));
+        assert_eq!(a.last_mut(), Some(&mut 1));
+
+        assert!(a.push(&2).is_ok());
+
+        assert_eq!(a.first(), Some(&1));
+        assert_eq!(a.first_mut(), Some(&mut 1));
+        assert_eq!(a.last(), Some(&2));
+        assert_eq!(a.last_mut(), Some(&mut 2));
     }
 
     #[test]
