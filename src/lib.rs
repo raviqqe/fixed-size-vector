@@ -1,3 +1,5 @@
+extern crate arrayvec;
+
 mod array_queue;
 mod error;
 

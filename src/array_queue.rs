@@ -1,44 +1,34 @@
-use std::mem::replace;
+use std::mem::{drop, forget, replace, uninitialized, ManuallyDrop};
+
+use arrayvec::Array;
 
 use super::error::CapacityError;
 
-#[derive(Clone, Copy, Debug)]
-pub struct ArrayQueue<A> {
-    array: A,
+#[derive(Clone, Debug)]
+pub struct ArrayQueue<A: Array + AsRef<[<A as Array>::Item]> + AsMut<[<A as Array>::Item]>> {
+    array: ManuallyDrop<A>,
     start: usize,
     length: usize,
 }
 
-impl<A> ArrayQueue<A> {
-    pub fn new() -> Self
-    where
-        A: Default,
-    {
+impl<A: Array + AsRef<[<A as Array>::Item]> + AsMut<[<A as Array>::Item]>> ArrayQueue<A> {
+    pub fn new() -> Self {
         ArrayQueue {
-            array: Default::default(),
+            array: unsafe { uninitialized() },
             start: 0,
             length: 0,
         }
     }
 
-    pub fn first<T>(&self) -> Option<&T>
-    where
-        A: AsRef<[T]>,
-    {
+    pub fn first(&self) -> Option<&<A as Array>::Item> {
         self.element(0)
     }
 
-    pub fn first_mut<T>(&mut self) -> Option<&mut T>
-    where
-        A: AsRef<[T]> + AsMut<[T]>,
-    {
+    pub fn first_mut(&mut self) -> Option<&mut <A as Array>::Item> {
         self.element_mut(0)
     }
 
-    pub fn last<T>(&self) -> Option<&T>
-    where
-        A: AsRef<[T]>,
-    {
+    pub fn last(&self) -> Option<&<A as Array>::Item> {
         if self.is_empty() {
             return None;
         }
@@ -46,10 +36,7 @@ impl<A> ArrayQueue<A> {
         self.element(self.length - 1)
     }
 
-    pub fn last_mut<T>(&mut self) -> Option<&mut T>
-    where
-        A: AsRef<[T]> + AsMut<[T]>,
-    {
+    pub fn last_mut(&mut self) -> Option<&mut <A as Array>::Item> {
         if self.is_empty() {
             return None;
         }
@@ -58,10 +45,7 @@ impl<A> ArrayQueue<A> {
         self.element_mut(i)
     }
 
-    fn element<T>(&self, i: usize) -> Option<&T>
-    where
-        A: AsRef<[T]>,
-    {
+    fn element(&self, i: usize) -> Option<&<A as Array>::Item> {
         if self.is_empty() {
             None
         } else {
@@ -69,10 +53,7 @@ impl<A> ArrayQueue<A> {
         }
     }
 
-    fn element_mut<T>(&mut self, i: usize) -> Option<&mut T>
-    where
-        A: AsRef<[T]> + AsMut<[T]>,
-    {
+    fn element_mut(&mut self, i: usize) -> Option<&mut <A as Array>::Item> {
         if self.is_empty() {
             None
         } else {
@@ -81,59 +62,54 @@ impl<A> ArrayQueue<A> {
         }
     }
 
-    pub fn push_back<T: Clone>(&mut self, x: &T) -> Result<(), CapacityError>
+    pub fn push_back(&mut self, x: &<A as Array>::Item) -> Result<(), CapacityError>
     where
-        A: AsRef<[T]> + AsMut<[T]>,
+        <A as Array>::Item: Clone,
     {
         if self.is_full() {
             return Err(CapacityError);
         }
 
         let i = self.index(self.length);
-        self.array.as_mut()[i] = x.clone();
+        forget(replace(&mut self.array.as_mut()[i], x.clone()));
         self.length += 1;
         Ok(())
     }
 
-    pub fn push_front<T: Clone>(&mut self, x: &T) -> Result<(), CapacityError>
+    pub fn push_front(&mut self, x: &<A as Array>::Item) -> Result<(), CapacityError>
     where
-        A: AsRef<[T]> + AsMut<[T]>,
+        <A as Array>::Item: Clone,
     {
         if self.is_full() {
             return Err(CapacityError);
         }
 
-        self.start = self.index(self.capacity() - 1);
-        self.array.as_mut()[self.start] = x.clone();
+        self.start = self.index(Self::capacity() - 1);
+        forget(replace(&mut self.array.as_mut()[self.start], x.clone()));
         self.length += 1;
         Ok(())
     }
 
-    pub fn pop_back<T: Default>(&mut self) -> Option<T>
-    where
-        A: AsRef<[T]> + AsMut<[T]>,
-    {
+    pub fn pop_back(&mut self) -> Option<<A as Array>::Item> {
         if self.is_empty() {
             return None;
         }
 
-        let x = replace(
-            &mut self.array.as_mut()[self.length - 1],
-            Default::default(),
-        );
+        let x = replace(&mut self.array.as_mut()[self.length - 1], unsafe {
+            uninitialized()
+        });
         self.length -= 1;
         Some(x)
     }
 
-    pub fn pop_front<T: Default>(&mut self) -> Option<T>
-    where
-        A: AsRef<[T]> + AsMut<[T]>,
-    {
+    pub fn pop_front(&mut self) -> Option<<A as Array>::Item> {
         if self.is_empty() {
             return None;
         }
 
-        let x = replace(&mut self.array.as_mut()[self.start], Default::default());
+        let x = replace(&mut self.array.as_mut()[self.start], unsafe {
+            uninitialized()
+        });
         self.start = self.index(1);
         self.length -= 1;
         Some(x)
@@ -143,46 +119,43 @@ impl<A> ArrayQueue<A> {
         self.length
     }
 
-    pub fn is_empty<T>(&self) -> bool
-    where
-        A: AsRef<[T]>,
-    {
+    pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
-    pub fn is_full<T>(&self) -> bool
-    where
-        A: AsRef<[T]>,
-    {
-        self.len() == self.capacity()
+    pub fn is_full(&self) -> bool {
+        self.len() == Self::capacity()
     }
 
-    fn index<T>(&self, i: usize) -> usize
-    where
-        A: AsRef<[T]>,
-    {
-        (self.start + i) % self.capacity()
+    fn index(&self, i: usize) -> usize {
+        (self.start + i) % Self::capacity()
     }
 
-    fn capacity<T>(&self) -> usize
-    where
-        A: AsRef<[T]>,
-    {
-        self.array.as_ref().len()
+    fn capacity() -> usize {
+        A::capacity()
     }
 }
 
-impl<A: Default> Default for ArrayQueue<A> {
+impl<A: Array + AsRef<[<A as Array>::Item]> + AsMut<[<A as Array>::Item]>> Default
+    for ArrayQueue<A>
+{
     fn default() -> Self {
         ArrayQueue::new()
     }
 }
 
-impl<'a, T: 'a, A: AsRef<[T]>> IntoIterator for &'a ArrayQueue<A>
-where
-    &'a A: IntoIterator<Item = &'a T>,
+impl<A: Array + AsRef<[<A as Array>::Item]> + AsMut<[<A as Array>::Item]>> Drop for ArrayQueue<A> {
+    fn drop(&mut self) {
+        for x in self {
+            drop(replace(x, unsafe { uninitialized() }));
+        }
+    }
+}
+
+impl<'a, A: Array + AsRef<[<A as Array>::Item]> + AsMut<[<A as Array>::Item]>> IntoIterator
+    for &'a ArrayQueue<A>
 {
-    type Item = &'a T;
+    type Item = &'a <A as Array>::Item;
     type IntoIter = ArrayQueueIterator<'a, A>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -193,11 +166,10 @@ where
     }
 }
 
-impl<'a, T: 'a, A: AsRef<[T]> + AsMut<[T]>> IntoIterator for &'a mut ArrayQueue<A>
-where
-    &'a A: IntoIterator<Item = &'a T>,
+impl<'a, A: Array + AsRef<[<A as Array>::Item]> + AsMut<[<A as Array>::Item]>> IntoIterator
+    for &'a mut ArrayQueue<A>
 {
-    type Item = &'a mut T;
+    type Item = &'a mut <A as Array>::Item;
     type IntoIter = ArrayQueueMutIterator<'a, A>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -209,16 +181,18 @@ where
 }
 
 #[derive(Debug)]
-pub struct ArrayQueueIterator<'a, A: 'a> {
+pub struct ArrayQueueIterator<
+    'a,
+    A: 'a + Array + AsRef<[<A as Array>::Item]> + AsMut<[<A as Array>::Item]>,
+> {
     queue: &'a ArrayQueue<A>,
     current: usize,
 }
 
-impl<'a, T: 'a, A: AsRef<[T]>> Iterator for ArrayQueueIterator<'a, A>
-where
-    &'a A: IntoIterator<Item = &'a T>,
+impl<'a, A: Array + AsRef<[<A as Array>::Item]> + AsMut<[<A as Array>::Item]>> Iterator
+    for ArrayQueueIterator<'a, A>
 {
-    type Item = &'a T;
+    type Item = &'a <A as Array>::Item;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.current == self.queue.length {
@@ -232,16 +206,18 @@ where
 }
 
 #[derive(Debug)]
-pub struct ArrayQueueMutIterator<'a, A: 'a> {
+pub struct ArrayQueueMutIterator<
+    'a,
+    A: 'a + Array + AsRef<[<A as Array>::Item]> + AsMut<[<A as Array>::Item]>,
+> {
     queue: &'a mut ArrayQueue<A>,
     current: usize,
 }
 
-impl<'a, T: 'a, A: AsRef<[T]> + AsMut<[T]>> Iterator for ArrayQueueMutIterator<'a, A>
-where
-    &'a A: IntoIterator<Item = &'a T>,
+impl<'a, A: Array + AsRef<[<A as Array>::Item]> + AsMut<[<A as Array>::Item]>> Iterator
+    for ArrayQueueMutIterator<'a, A>
 {
-    type Item = &'a mut T;
+    type Item = &'a mut <A as Array>::Item;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.current == self.queue.length {
@@ -249,7 +225,7 @@ where
         }
 
         let i = self.queue.index(self.current);
-        let x = &mut self.queue.array.as_mut()[i] as *mut T;
+        let x = &mut self.queue.array.as_mut()[i] as *mut <A as Array>::Item;
         self.current += 1;
         Some(unsafe { &mut *x })
     }
@@ -458,5 +434,72 @@ mod test {
     fn reference_elements() {
         let mut a: ArrayQueue<[Box<usize>; 2]> = ArrayQueue::new();
         assert!(a.push_back(&Box::new(42)).is_ok());
+        assert!(a.push_front(&Box::new(42)).is_ok());
+    }
+
+    static mut FOO_SUM: usize = 0;
+
+    #[derive(Clone)]
+    struct Foo;
+
+    impl Drop for Foo {
+        fn drop(&mut self) {
+            unsafe {
+                FOO_SUM += 1;
+            }
+        }
+    }
+
+    #[test]
+    fn no_drops_of_elements_on_push_back() {
+        assert_eq!(unsafe { FOO_SUM }, 0);
+
+        let mut a: ArrayQueue<[Foo; 32]> = ArrayQueue::new();
+
+        for _ in 0..32 {
+            assert!(a.push_back(&Foo).is_ok());
+        }
+
+        assert_eq!(unsafe { FOO_SUM }, 32); // drops of arguments `&Foo`
+
+        drop(a);
+
+        assert_eq!(unsafe { FOO_SUM }, 64); // drops of elements
+    }
+
+    static mut BAR_SUM: usize = 0;
+
+    #[derive(Clone)]
+    struct Bar;
+
+    impl Drop for Bar {
+        fn drop(&mut self) {
+            unsafe {
+                BAR_SUM += 1;
+            }
+        }
+    }
+
+    #[test]
+    fn drops_of_elements_on_pop_back() {
+        assert_eq!(unsafe { BAR_SUM }, 0);
+
+        let mut a: ArrayQueue<[Bar; 32]> = ArrayQueue::new();
+
+        for _ in 0..32 {
+            assert!(a.push_back(&Bar).is_ok());
+        }
+
+        assert_eq!(unsafe { BAR_SUM }, 32); // drops of arguments `&Bar`
+
+        for _ in 0..32 {
+            assert!(a.pop_back().is_some());
+        }
+
+        assert_eq!(unsafe { BAR_SUM }, 64); // drops of elements
+
+        drop(a);
+
+        assert_eq!(unsafe { BAR_SUM }, 64);
     }
 }
