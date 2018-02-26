@@ -4,7 +4,7 @@ use arrayvec::Array;
 
 use super::error::CapacityError;
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct ArrayQueue<A: Array + AsRef<[<A as Array>::Item]> + AsMut<[<A as Array>::Item]>> {
     array: ManuallyDrop<A>,
     start: usize,
@@ -133,6 +133,21 @@ impl<A: Array + AsRef<[<A as Array>::Item]> + AsMut<[<A as Array>::Item]>> Array
 
     fn capacity() -> usize {
         A::capacity()
+    }
+}
+
+impl<A: Array + AsRef<[<A as Array>::Item]> + AsMut<[<A as Array>::Item]>> Clone for ArrayQueue<A>
+where
+    <A as Array>::Item: Clone,
+{
+    fn clone(&self) -> Self {
+        let mut a = Self::new();
+
+        for x in self {
+            a.push_back(x).unwrap();
+        }
+
+        a
     }
 }
 
@@ -435,6 +450,17 @@ mod test {
         let mut a: ArrayQueue<[Box<usize>; 2]> = ArrayQueue::new();
         assert!(a.push_back(&Box::new(42)).is_ok());
         assert!(a.push_front(&Box::new(42)).is_ok());
+    }
+
+    #[test]
+    fn clone() {
+        let mut a: ArrayQueue<[Box<usize>; 32]> = ArrayQueue::new();
+
+        for _ in 0..32 {
+            assert!(a.push_back(&Box::new(42)).is_ok());
+        }
+
+        a.clone();
     }
 
     static mut FOO_SUM: usize = 0;
