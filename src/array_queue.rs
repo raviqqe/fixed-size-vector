@@ -179,7 +179,7 @@ impl<'a, A: Array + AsRef<[<A as Array>::Item]> + AsMut<[<A as Array>::Item]>> I
         ArrayQueueIterator {
             queue: self,
             first: 0,
-            last: l - 1,
+            last: l,
         }
     }
 }
@@ -191,9 +191,12 @@ impl<'a, A: Array + AsRef<[<A as Array>::Item]> + AsMut<[<A as Array>::Item]>> I
     type IntoIter = ArrayQueueMutIterator<'a, A>;
 
     fn into_iter(self) -> Self::IntoIter {
+        let l = self.len();
+
         ArrayQueueMutIterator {
             queue: self,
             first: 0,
+            last: l,
         }
     }
 }
@@ -212,7 +215,7 @@ impl<'a, A: 'a + Array + AsRef<[<A as Array>::Item]> + AsMut<[<A as Array>::Item
     ArrayQueueIterator<'a, A>
 {
     fn exhausted(&self) -> bool {
-        self.first > self.last
+        self.first >= self.last
     }
 }
 
@@ -240,8 +243,8 @@ impl<'a, A: Array + AsRef<[<A as Array>::Item]> + AsMut<[<A as Array>::Item]>> D
             return None;
         }
 
-        let x = &self.queue.array.as_ref()[self.queue.index(self.last)];
         self.last -= 1;
+        let x = &self.queue.array.as_ref()[self.queue.index(self.last)];
         Some(x)
     }
 }
@@ -253,6 +256,15 @@ pub struct ArrayQueueMutIterator<
 > {
     queue: &'a mut ArrayQueue<A>,
     first: usize,
+    last: usize,
+}
+
+impl<'a, A: 'a + Array + AsRef<[<A as Array>::Item]> + AsMut<[<A as Array>::Item]>>
+    ArrayQueueMutIterator<'a, A>
+{
+    fn exhausted(&self) -> bool {
+        self.first >= self.last
+    }
 }
 
 impl<'a, A: Array + AsRef<[<A as Array>::Item]> + AsMut<[<A as Array>::Item]>> Iterator
@@ -261,13 +273,28 @@ impl<'a, A: Array + AsRef<[<A as Array>::Item]> + AsMut<[<A as Array>::Item]>> I
     type Item = &'a mut <A as Array>::Item;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.first == self.queue.length {
+        if self.exhausted() {
             return None;
         }
 
         let i = self.queue.index(self.first);
         let x = &mut self.queue.array.as_mut()[i] as *mut <A as Array>::Item;
         self.first += 1;
+        Some(unsafe { &mut *x })
+    }
+}
+
+impl<'a, A: Array + AsRef<[<A as Array>::Item]> + AsMut<[<A as Array>::Item]>> DoubleEndedIterator
+    for ArrayQueueMutIterator<'a, A>
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.exhausted() {
+            return None;
+        }
+
+        self.last -= 1;
+        let i = self.queue.index(self.last);
+        let x = &mut self.queue.array.as_mut()[i] as *mut <A as Array>::Item;
         Some(unsafe { &mut *x })
     }
 }
@@ -471,6 +498,28 @@ mod test {
         assert_eq!(i.next_back(), Some(&1));
         assert_eq!(i.next(), None);
         assert_eq!(i.next_back(), None);
+    }
+
+    #[test]
+    fn iterate_forward_and_backward_mutablly() {
+        let mut a: ArrayQueue<[usize; 2]> = ArrayQueue::new();
+
+        assert!(a.push_back(&0).is_ok());
+        assert!(a.push_back(&1).is_ok());
+
+        let mut i = (&mut a).into_iter();
+
+        assert_eq!(i.next(), Some(&mut 0));
+        assert_eq!(i.next_back(), Some(&mut 1));
+        assert_eq!(i.next(), None);
+        assert_eq!(i.next_back(), None);
+    }
+
+    #[test]
+    fn iterate_empty_queue() {
+        let a = ArrayQueue::<[usize; 0]>::new();
+
+        for _ in a.into_iter() {}
     }
 
     #[test]
