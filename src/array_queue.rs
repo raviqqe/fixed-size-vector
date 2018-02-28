@@ -252,8 +252,8 @@ mod test {
 
     #[test]
     fn new() {
-        let _: ArrayQueue<[usize; 1]> = ArrayQueue::new();
-        let _: ArrayQueue<[usize; 2]> = ArrayQueue::new();
+        ArrayQueue::<[usize; 1]>::new();
+        ArrayQueue::<[usize; 2]>::new();
     }
 
     #[test]
